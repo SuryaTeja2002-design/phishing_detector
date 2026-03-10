@@ -82,6 +82,13 @@ pip install -r requirements.txt
 ```
 
 ---
+## Running the model training
+
+Train the model:
+
+```
+python train_model.py
+```
 
 ## Running the Web Application
 
@@ -160,3 +167,4 @@ Surya Teja Gorthi
 ## License
 
 This project is intended for educational and research purposes.
+
