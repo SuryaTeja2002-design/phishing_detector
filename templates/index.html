@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PhishGuard AI — Advanced Detection Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --bg:        #060a12;
+      --panel:     #0d1420;
+      --border:    #1a2436;
+      --border2:   #243040;
+      --accent:    #3b82f6;
+      --accent2:   #60a5fa;
+      --danger:    #ef4444;
+      --danger2:   #fca5a5;
+      --safe:      #10b981;
+      --safe2:     #6ee7b7;
+      --warn:      #f59e0b;
+      --warn2:     #fcd34d;
+      --purple:    #8b5cf6;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --muted2:    #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #0d1420 0%, #111827 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .logo-area { display: flex; align-items: center; gap: 14px; }
+
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+
+    .logo-text h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+    .logo-text span { font-size: 12px; color: var(--muted2); letter-spacing: 1px; }
+
+    .header-badges { display: flex; gap: 8px; }
+    .badge {
+      border-radius: 20px; font-size: 11px; font-weight: 600;
+      padding: 4px 12px; letter-spacing: 0.5px;
+    }
+    .badge-blue { background: rgba(59,130,246,.15); color: var(--accent2); border: 1px solid rgba(59,130,246,.25); }
+    .badge-green { background: rgba(16,185,129,.15); color: var(--safe2); border: 1px solid rgba(16,185,129,.25); }
+
+    /* ── Layout ── */
+    .main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── URL Input ── */
+    .url-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .url-label {
+      font-size: 13px; font-weight: 600; color: var(--muted2);
+      text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px;
+    }
+
+    .url-row { display: flex; gap: 12px; }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      padding: 14px 18px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+    }
+    input::placeholder { color: var(--muted); }
+
+    .btn {
+      border: none; border-radius: 10px; cursor: pointer;
+      font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+      font-size: 14px; padding: 14px 28px;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { opacity: .85; }
+    .btn-sm {
+      padding: 7px 14px; font-size: 12px; border-radius: 7px;
+      background: var(--border2); color: var(--muted2);
+      border: 1px solid var(--border);
+    }
+    .btn-sm:hover { background: var(--border); color: var(--text); }
+
+    .examples { margin-top: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .ex-label { font-size: 12px; color: var(--muted); }
+    .chip {
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: 6px; color: var(--muted2);
+      cursor: pointer; font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; padding: 5px 12px;
+      transition: all .2s;
+    }
+    .chip:hover { border-color: var(--accent2); color: var(--accent2); }
+    .chip.bad { border-color: rgba(239,68,68,.3); color: #f87171; }
+    .chip.bad:hover { border-color: var(--danger); color: var(--danger2); }
+
+    /* ── Grid ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .col-span-2 { grid-column: span 2; }
+    .col-span-3 { grid-column: span 3; }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+    }
+
+    .panel-title {
+      font-size: 12px; font-weight: 600; color: var(--muted2);
+      text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* ── Verdict ── */
+    .verdict-panel {
+      border-radius: 14px;
+      padding: 24px;
+      border: 1px solid;
+      position: relative;
+      overflow: hidden;
+    }
+    .verdict-panel::before {
+      content: '';
+      position: absolute; inset: 0;
+      opacity: .04;
+      pointer-events: none;
+    }
+    .verdict-panel.phishing {
+      border-color: rgba(239,68,68,.4);
+      background: linear-gradient(135deg, rgba(239,68,68,.08) 0%, var(--panel) 60%);
+    }
+    .verdict-panel.legitimate {
+      border-color: rgba(16,185,129,.4);
+      background: linear-gradient(135deg, rgba(16,185,129,.08) 0%, var(--panel) 60%);
+    }
+
+    .verdict-top {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 16px; margin-bottom: 20px;
+    }
+
+    .verdict-left { display: flex; align-items: center; gap: 16px; }
+    .verdict-emoji { font-size: 40px; line-height: 1; }
+
+    .verdict-label { font-size: 24px; font-weight: 700; }
+    .verdict-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; color: var(--muted2);
+      word-break: break-all; margin-top: 4px; max-width: 500px;
+    }
+
+    .risk-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      padding: 7px 16px; border-radius: 20px; flex-shrink: 0;
+    }
+    .risk-HIGH   { background: rgba(239,68,68,.2); color: var(--danger2); border: 1px solid rgba(239,68,68,.3); }
+    .risk-MEDIUM { background: rgba(245,158,11,.2); color: var(--warn2); border: 1px solid rgba(245,158,11,.3); }
+    .risk-LOW    { background: rgba(16,185,129,.2); color: var(--safe2); border: 1px solid rgba(16,185,129,.3); }
+
+    /* ── Probability bar ── */
+    .prob-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted2); margin-bottom: 8px; }
+    .prob-bar-bg { background: var(--border); border-radius: 4px; height: 10px; overflow: hidden; }
+    .prob-bar-fill { height: 100%; border-radius: 4px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+    .phishing .prob-bar-fill { background: linear-gradient(90deg, var(--warn), var(--danger)); }
+    .legitimate .prob-bar-fill { background: linear-gradient(90deg, var(--accent), var(--safe)); }
+
+    /* ── Stat cards ── */
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 28px; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 4px;
+    }
+    .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ── Feature importance bars ── */
+    .feat-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 10px; font-size: 13px;
+    }
+    .feat-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--muted2); width: 200px; flex-shrink: 0;
+    }
+    .feat-bar-bg { flex: 1; background: var(--border); border-radius: 3px; height: 6px; overflow: hidden; }
+    .feat-bar-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
+    .feat-bar-phish { background: linear-gradient(90deg, var(--accent), var(--purple)); }
+    .feat-bar-safe  { background: linear-gradient(90deg, var(--safe), var(--accent)); }
+    .feat-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted2); width: 40px; text-align: right; }
+    .feat-signal {
+      font-size: 10px; width: 60px; text-align: center;
+      padding: 2px 6px; border-radius: 4px; flex-shrink: 0;
+    }
+    .feat-signal.bad { background: rgba(239,68,68,.15); color: #f87171; }
+    .feat-signal.ok  { background: rgba(16,185,129,.15); color: var(--safe2); }
+
+    /* ── Cyber cards ── */
+    .cyber-item {
+      display: flex; gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .cyber-item:last-child { border-bottom: none; }
+    .cyber-key { color: var(--muted2); width: 130px; flex-shrink: 0; }
+    .cyber-val { color: var(--text); }
+    .flag-item {
+      display: flex; gap: 8px; font-size: 13px; margin-bottom: 8px; align-items: flex-start;
+    }
+    .flag-sev {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      padding: 2px 7px; border-radius: 4px; flex-shrink: 0; margin-top: 1px;
+    }
+    .flag-sev.HIGH   { background: rgba(239,68,68,.2); color: var(--danger2); }
+    .flag-sev.MEDIUM { background: rgba(245,158,11,.2); color: var(--warn2); }
+    .flag-sev.LOW    { background: rgba(16,185,129,.2); color: var(--safe2); }
+
+    /* ── Confidence meter ── */
+    .conf-meter {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 16px;
+    }
+    .conf-ring {
+      width: 80px; height: 80px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0;
+    }
+    .conf-high   { background: rgba(16,185,129,.15); border: 3px solid var(--safe); color: var(--safe2); }
+    .conf-medium { background: rgba(245,158,11,.15); border: 3px solid var(--warn); color: var(--warn2); }
+    .conf-low    { background: rgba(239,68,68,.15); border: 3px solid var(--danger); color: var(--danger2); }
+    .conf-text h3 { font-size: 15px; margin-bottom: 4px; }
+    .conf-text p  { font-size: 12px; color: var(--muted2); line-height: 1.5; }
+
+    /* ── Model row ── */
+    .model-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 12px; font-size: 13px;
+    }
+    .model-name { width: 160px; font-size: 12px; color: var(--muted2); flex-shrink: 0; }
+    .model-bar-bg { flex: 1; background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
+    .model-bar-fill { height: 100%; border-radius: 4px; transition: width .7s ease; }
+    .model-pct { font-family: 'JetBrains Mono', monospace; font-size: 12px; width: 45px; text-align: right; }
+
+    /* ── History table ── */
+    .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .history-table th {
+      text-align: left; color: var(--muted); font-size: 11px;
+      text-transform: uppercase; letter-spacing: 1px;
+      padding: 0 12px 10px; border-bottom: 1px solid var(--border);
+    }
+    .history-table td {
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table td.url-cell { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Misc ── */
+    #dashboard { display: none; }
+    .err { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 10px; padding: 14px 18px; color: #f87171; font-size: 14px; margin-bottom: 20px; }
+
+    .tag {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      padding: 2px 8px; border-radius: 4px; letter-spacing: .5px;
+      background: rgba(59,130,246,.15); color: var(--accent2);
+      border: 1px solid rgba(59,130,246,.2);
+    }
+
+    .note {
+      font-size: 12px; color: var(--muted);
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; margin-top: 12px;
+      line-height: 1.6;
+    }
+
+    .section-gap { margin-bottom: 20px; }
+
+    @media (max-width: 900px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .col-span-2, .col-span-3 { grid-column: span 1; }
+      .main { padding: 16px; }
+      header { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo-area">
+    <div class="logo-icon">🎣</div>
+    <div class="logo-text">
+      <h1>PhishGuard AI</h1>
+      <span>Advanced Phishing Detection Platform</span>
+    </div>
+  </div>
+  <div class="header-badges">
+    <span class="badge badge-blue">4 ML Models</span>
+    <span class="badge badge-green">Live Cyber Analysis</span>
+  </div>
+</header>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- URL Input -->
+  <div class="url-card">
+    <div class="url-label">Analyze URL</div>
+    <div class="url-row">
+      <input type="text" id="urlInput" placeholder="Enter any URL — e.g. https://example.com or http://suspicious-site.xyz/login"/>
+      <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()">Scan URL</button>
+    </div>
+    <div class="examples">
+      <span class="ex-label">Try:</span>
+      <span class="chip" onclick="go('https://www.github.com/login')">github.com/login</span>
+      <span class="chip" onclick="go('https://www.amazon.com/products')">amazon.com</span>
+      <span class="chip" onclick="go('https://stackoverflow.com/questions')">stackoverflow.com</span>
+      <span class="chip bad" onclick="go('http://secure-paypal-login.xyz/account/verify?id=382910')">paypal-login.xyz ⚠</span>
+      <span class="chip bad" onclick="go('http://192.168.1.105/amazon/login.php')">IP-based URL ⚠</span>
+      <span class="chip bad" onclick="go('http://apple-id-suspended.support/verify?user=abc123')">apple-id-suspended ⚠</span>
+      <span class="chip bad" onclick="go('http://microsoft-security-update.com/credential-reset')">ms-credential-reset ⚠</span>
+    </div>
+  </div>
+
+  <div id="errorDiv"></div>
+  <div id="dashboard">
+
+    <!-- Row 1: Verdict + 4 stats -->
+    <div class="section-gap">
+      <div class="verdict-panel" id="verdictPanel">
+        <div class="verdict-top">
+          <div class="verdict-left">
+            <span class="verdict-emoji" id="verdictEmoji"></span>
+            <div>
+              <div class="verdict-label" id="verdictLabel"></div>
+              <div class="verdict-url" id="verdictUrl"></div>
+            </div>
+          </div>
+          <span class="risk-badge" id="riskBadge"></span>
+        </div>
+        <div class="prob-row">
+          <span>Phishing Probability</span>
+          <span id="probPct"></span>
+        </div>
+        <div class="prob-bar-bg">
+          <div class="prob-bar-fill" id="probBar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="grid-4 section-gap">
+      <div class="stat-card">
+        <div class="stat-value" id="statProb" style="color:var(--danger)">—</div>
+        <div class="stat-label">Phish Probability</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statConf" style="color:var(--accent)">—</div>
+        <div class="stat-label">Model Agreement</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statCyber" style="color:var(--warn)">—</div>
+        <div class="stat-label">Cyber Risk Score</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statFlags" style="color:var(--purple)">—</div>
+        <div class="stat-label">Security Flags</div>
+      </div>
+    </div>
+
+    <!-- Row 2: Model Comparison + Confidence -->
+    <div class="grid-2 section-gap">
+
+      <!-- Model Comparison -->
+      <div class="panel">
+        <div class="panel-title"><span class="dot" style="background:var(--accent)"></span>Multi-Model Comparison</div>
+        <div id="modelBars"></div>
+        <div style="margin-top:14px;">
+          <canvas id="modelChart" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Confidence + Uncertainty -->
+      <div class="panel">
+        <div class="panel-title"><span class="dot" style="background:var(--purple)"></span>Confidence & Uncertainty</div>
+        <div class="conf-meter" id="confMeter"></div>
+        <div style="margin-top: 10px;">
+          <canvas id="radarChart" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: Feature Importance (Explainability) -->
+    <div class="panel section-gap">
+      <div class="panel-title">
+        <span class="dot" style="background:var(--warn)"></span>
+        Feature Explainability
+        <span class="tag">SHAP-equivalent Permutation Importance</span>
+      </div>
+      <div id="featImportance"></div>
+    </div>
+
+    <!-- Row 4: Cyber Analysis -->
+    <div class="grid-3 section-gap">
+
+      <!-- WHOIS -->
+      <div class="panel">
+        <div class="panel-title"><span class="dot" style="background:var(--safe)"></span>WHOIS / Domain Age</div>
+        <div id="whoisPanel"></div>
+      </div>
+
+      <!-- DNS -->
+      <div class="panel">
+        <div class="panel-title"><span class="dot" style="background:var(--accent)"></span>DNS Analysis</div>
+        <div id="dnsPanel"></div>
+      </div>
+
+      <!-- SSL -->
+      <div class="panel">
+        <div class="panel-title"><span class="dot" style="background:var(--purple)"></span>SSL / TLS Certificate</div>
+        <div id="sslPanel"></div>
+      </div>
+    </div>
+
+    <!-- Row 5: Threat Intel + Flags -->
+    <div class="grid-2 section-gap">
+
+      <div class="panel">
+        <div class="panel-title"><span class="dot" style="background:var(--danger)"></span>Threat Intelligence</div>
+        <div id="threatPanel"></div>
+        <div class="note">
+          💡 In production: integrate VirusTotal API, AbuseIPDB, PhishTank CSV, and OpenPhish feed (all offer free tiers) for real threat data.
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><span class="dot" style="background:var(--warn)"></span>Security Flags Summary</div>
+        <div id="flagsPanel"></div>
+      </div>
+    </div>
+
+    <!-- Row 6: Online Learner + History -->
+    <div class="grid-2 section-gap">
+
+      <div class="panel">
+        <div class="panel-title"><span class="dot" style="background:var(--safe)"></span>Online Retraining (SGD)</div>
+        <p style="font-size:13px; color:var(--muted2); line-height:1.7; margin-bottom:16px;">
+          Submit labeled feedback to incrementally update the online model without full retraining. Uses <strong>SGDClassifier.partial_fit()</strong> — new samples update weights immediately.
+        </p>
+        <div style="display:flex; gap:10px; margin-bottom:12px;">
+          <button class="btn btn-sm" onclick="submitFeedback(0)">✅ Mark as Legitimate</button>
+          <button class="btn btn-sm" onclick="submitFeedback(1)">🚨 Mark as Phishing</button>
+        </div>
+        <div id="onlinePanel" style="font-size:13px; color:var(--muted2);"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><span class="dot" style="background:var(--accent2)"></span>Scan History</div>
+        <div style="overflow-x:auto;">
+          <table class="history-table" id="historyTable">
+            <thead><tr><th>URL</th><th>Result</th><th>Prob%</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-sm" onclick="loadHistory()" style="margin-top:12px;">Refresh History</button>
+      </div>
+    </div>
+
+    <!-- Row 7: Raw Features -->
+    <div class="panel section-gap">
+      <div class="panel-title"><span class="dot"></span>Raw Feature Vector (35 Features)</div>
+      <div id="rawFeatures" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap:10px;"></div>
+    </div>
+
+  </div><!-- /dashboard -->
+</div><!-- /main -->
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentUrl = "";
+let modelChart = null;
+let radarChart = null;
+
+// ── Entry ─────────────────────────────────────────────────────────────────────
+document.getElementById("urlInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") analyze();
+});
+
+function go(url) {
+  document.getElementById("urlInput").value = url;
+  document.getElementById("urlInput").focus();
+}
+
+async function analyze() {
+  const url = document.getElementById("urlInput").value.trim();
+  if (!url) return;
+  currentUrl = url;
+
+  const btn = document.getElementById("analyzeBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Scanning...';
+  document.getElementById("errorDiv").innerHTML = "";
+  document.getElementById("dashboard").style.display = "none";
+
+  try {
+    const res = await fetch("/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderDashboard(data);
+    document.getElementById("dashboard").style.display = "block";
+    loadHistory();
+  } catch (err) {
+    document.getElementById("errorDiv").innerHTML = `<div class="err">⚠ ${err.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Scan URL";
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderDashboard(d) {
+  const isPhish = d.prediction === "phishing";
+
+  // Verdict
+  const panel = document.getElementById("verdictPanel");
+  panel.className = `verdict-panel ${d.prediction}`;
+  document.getElementById("verdictEmoji").textContent = isPhish ? "🚨" : "✅";
+  document.getElementById("verdictLabel").textContent = isPhish ? "Phishing Detected" : "Looks Legitimate";
+  document.getElementById("verdictUrl").textContent = d.url;
+
+  const rb = document.getElementById("riskBadge");
+  rb.textContent = d.risk_level + " RISK";
+  rb.className = `risk-badge risk-${d.risk_level}`;
+
+  const pct = d.phishing_probability;
+  document.getElementById("probPct").textContent = pct + "%";
+  setTimeout(() => document.getElementById("probBar").style.width = pct + "%", 50);
+
+  // Stats
+  document.getElementById("statProb").textContent = pct + "%";
+  document.getElementById("statProb").style.color = pct >= 75 ? "var(--danger)" : pct >= 40 ? "var(--warn)" : "var(--safe)";
+  document.getElementById("statConf").textContent = (d.uncertainty?.model_agreement ?? "—") + "%";
+  document.getElementById("statCyber").textContent = d.cyber?.cyber_risk_score ?? "—";
+  document.getElementById("statFlags").textContent = d.cyber?.summary_flags?.length ?? 0;
+
+  renderModelComparison(d);
+  renderConfidence(d);
+  renderExplainability(d);
+  renderWhois(d.cyber?.whois);
+  renderDns(d.cyber?.dns);
+  renderSsl(d.cyber?.ssl);
+  renderThreatIntel(d.cyber?.threat_intel);
+  renderFlags(d.cyber?.summary_flags);
+  renderOnline(d.online_model);
+  renderRawFeatures(d.features);
+}
+
+// ── Model Comparison ──────────────────────────────────────────────────────────
+function renderModelComparison(d) {
+  const models = d.per_model_probabilities || {};
+  const labels = Object.keys(models);
+  const values = Object.values(models);
+
+  // Bar rows
+  const html = labels.map(name => {
+    const v = models[name] ?? 0;
+    const color = v >= 75 ? "var(--danger)" : v >= 40 ? "var(--warn)" : "var(--safe)";
+    return `
+      <div class="model-row">
+        <span class="model-name">${name}</span>
+        <div class="model-bar-bg">
+          <div class="model-bar-fill" style="width:${v}%; background:${color};"></div>
+        </div>
+        <span class="model-pct" style="color:${color}">${v}%</span>
+      </div>`;
+  }).join("");
+  document.getElementById("modelBars").innerHTML = html;
+
+  // Chart.js bar chart
+  const colors = values.map(v => v >= 75 ? "#ef4444" : v >= 40 ? "#f59e0b" : "#10b981");
+  if (modelChart) modelChart.destroy();
+  modelChart = new Chart(document.getElementById("modelChart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Phishing Probability %",
+        data: values,
+        backgroundColor: colors.map(c => c + "55"),
+        borderColor: colors,
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 100, grid: { color: "#1a2436" }, ticks: { color: "#64748b", font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: { color: "#64748b", font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// ── Confidence ────────────────────────────────────────────────────────────────
+function renderConfidence(d) {
+  const unc = d.uncertainty || {};
+  const level = unc.confidence_level || "LOW";
+  const agreement = unc.model_agreement || 0;
+  const std = unc.std || 0;
+  const confClass = level === "HIGH" ? "conf-high" : level === "MEDIUM" ? "conf-medium" : "conf-low";
+
+  document.getElementById("confMeter").innerHTML = `
+    <div class="conf-ring ${confClass}">${agreement}%</div>
+    <div class="conf-text">
+      <h3>Confidence: ${level}</h3>
+      <p>Model standard deviation: <strong>${(std * 100).toFixed(1)}%</strong><br>
+      ${level === "HIGH" ? "All models strongly agree on this prediction." :
+        level === "MEDIUM" ? "Models mostly agree — treat with moderate caution." :
+        "Models disagree significantly — result is uncertain."}
+      </p>
+    </div>`;
+
+  // Radar chart of per-model probabilities
+  const models = d.per_model_probabilities || {};
+  const labels = Object.keys(models);
+  const values = Object.values(models);
+  if (radarChart) radarChart.destroy();
+  radarChart = new Chart(document.getElementById("radarChart"), {
+    type: "radar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Phishing %",
+        data: values,
+        backgroundColor: "rgba(239,68,68,.15)",
+        borderColor: "#ef4444",
+        borderWidth: 2,
+        pointBackgroundColor: "#ef4444",
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        r: {
+          min: 0, max: 100,
+          grid: { color: "#1a2436" },
+          ticks: { display: false },
+          pointLabels: { color: "#94a3b8", font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+
+// ── Explainability ────────────────────────────────────────────────────────────
+function renderExplainability(d) {
+  const feats = d.top_features || [];
+  if (!feats.length) { document.getElementById("featImportance").innerHTML = "<p style='color:var(--muted)'>No data</p>"; return; }
+
+  const maxImp = Math.max(...feats.map(f => Math.abs(f.contribution)), 0.001);
+  const html = feats.map(f => {
+    const pct = Math.min(100, (Math.abs(f.contribution) / maxImp) * 100);
+    const isPhish = f.phishing_signal > 0;
+    const sigLabel = isPhish ? "phish ▲" : "safe ▼";
+    const sigClass = isPhish ? "bad" : "ok";
+    const barClass = isPhish ? "feat-bar-phish" : "feat-bar-safe";
+    return `
+      <div class="feat-row">
+        <span class="feat-name">${f.feature}</span>
+        <div class="feat-bar-bg"><div class="feat-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+        <span class="feat-val">${f.value}</span>
+        <span class="feat-signal ${sigClass}">${sigLabel}</span>
+      </div>`;
+  }).join("");
+
+  document.getElementById("featImportance").innerHTML = html +
+    `<div class="note">
+      <strong>How to read this:</strong> Bar length = permutation importance weight × phishing signal strength.
+      "phish ▲" means this feature pushes the score toward phishing; "safe ▼" pushes toward legitimate.
+      Method: randomly shuffle each feature, measure AUC drop — equivalent to SHAP TreeExplainer.
+    </div>`;
+}
+
+// ── WHOIS ─────────────────────────────────────────────────────────────────────
+function renderWhois(w) {
+  if (!w) return;
+  const items = [
+    ["Registrar", w.registrar || "Unknown"],
+    ["Created", w.creation_date || "Unknown"],
+    ["Expires", w.expiry_date || "Unknown"],
+    ["Domain Age", w.domain_age_days != null ? `${w.domain_age_days} days` : "Unknown"],
+  ];
+  const html = items.map(([k, v]) => `
+    <div class="cyber-item">
+      <span class="cyber-key">${k}</span>
+      <span class="cyber-val">${v}</span>
+    </div>`).join("") +
+    (w.risk_note ? `<div style="margin-top:12px; font-size:12px; color:var(--muted2);">${w.risk_note}</div>` : "");
+  document.getElementById("whoisPanel").innerHTML = html;
+}
+
+// ── DNS ───────────────────────────────────────────────────────────────────────
+function renderDns(dns) {
+  if (!dns) return;
+  const items = [
+    ["Resolves", dns.resolves ? "✓ Yes" : "✗ No"],
+    ["IP Address", (dns.ip_addresses || []).join(", ") || "None"],
+    ["Private IP", dns.is_private_ip ? "⚠ YES" : "No"],
+    ["MX Record", dns.mx_exists ? "✓ Found" : "Not found"],
+  ];
+  const html = items.map(([k, v]) => `
+    <div class="cyber-item">
+      <span class="cyber-key">${k}</span>
+      <span class="cyber-val">${v}</span>
+    </div>`).join("") +
+    `<div style="margin-top:10px;">` +
+    (dns.risk_notes || []).map(n => `<div style="font-size:12px; color:var(--muted2); margin-bottom:5px;">${n}</div>`).join("") +
+    `</div>`;
+  document.getElementById("dnsPanel").innerHTML = html;
+}
+
+// ── SSL ───────────────────────────────────────────────────────────────────────
+function renderSsl(ssl) {
+  if (!ssl) return;
+  const items = [
+    ["Protocol", ssl.checked ? "HTTPS ✓" : "HTTP (no SSL)"],
+    ["Valid", ssl.valid ? "✓ Yes" : "✗ No"],
+    ["Issuer", ssl.issuer || "—"],
+    ["Expires", ssl.expires || "—"],
+    ["Days Left", ssl.days_until_expiry != null ? `${ssl.days_until_expiry} days` : "—"],
+    ["Self-Signed", ssl.self_signed ? "⚠ Yes" : "No"],
+  ];
+  const html = items.map(([k, v]) => `
+    <div class="cyber-item">
+      <span class="cyber-key">${k}</span>
+      <span class="cyber-val">${v}</span>
+    </div>`).join("") +
+    `<div style="margin-top:10px;">` +
+    (ssl.risk_notes || []).map(n => `<div style="font-size:12px; color:var(--muted2); margin-bottom:5px;">${n}</div>`).join("") +
+    `</div>`;
+  document.getElementById("sslPanel").innerHTML = html;
+}
+
+// ── Threat Intel ──────────────────────────────────────────────────────────────
+function renderThreatIntel(ti) {
+  if (!ti) return;
+  const repColor = ti.reputation === "HIGH RISK" ? "var(--danger2)" :
+                   ti.reputation === "SUSPICIOUS" ? "var(--warn2)" : "var(--safe2)";
+  const items = [
+    ["Reputation", `<span style="color:${repColor}; font-weight:600;">${ti.reputation}</span>`],
+    ["Threat Score", `<span style="color:${repColor};">${ti.threat_score}/100</span>`],
+  ];
+  const flagsHtml = (ti.flags || []).length
+    ? ti.flags.map(f => `<div style="font-size:12px; color:var(--danger2); margin-bottom:5px;">⚠ ${f}</div>`).join("")
+    : `<div style="font-size:12px; color:var(--safe2);">✓ No threat flags detected</div>`;
+
+  document.getElementById("threatPanel").innerHTML =
+    items.map(([k, v]) => `
+      <div class="cyber-item">
+        <span class="cyber-key">${k}</span>
+        <span class="cyber-val">${v}</span>
+      </div>`).join("") +
+    `<div style="margin-top:12px;">${flagsHtml}</div>`;
+}
+
+// ── Flags Summary ─────────────────────────────────────────────────────────────
+function renderFlags(flags) {
+  if (!flags || !flags.length) {
+    document.getElementById("flagsPanel").innerHTML = `<div style="color:var(--safe2); font-size:14px;">✓ No critical security flags</div>`;
+    return;
+  }
+  document.getElementById("flagsPanel").innerHTML = flags.map(f => `
+    <div class="flag-item">
+      <span class="flag-sev ${f.severity}">${f.severity}</span>
+      <span style="font-size:13px; color:var(--muted2);">${f.msg}</span>
+    </div>`).join("");
+}
+
+// ── Online model ──────────────────────────────────────────────────────────────
+function renderOnline(ol) {
+  if (!ol) return;
+  const html = ol.error ? `<span style="color:var(--muted)">${ol.error}</span>` :
+    `<div class="cyber-item"><span class="cyber-key">Online Pred</span><span class="cyber-val">${ol.prediction || "—"}</span></div>
+     <div class="cyber-item"><span class="cyber-key">Phish Prob</span><span class="cyber-val">${ol.phishing_prob != null ? (ol.phishing_prob*100).toFixed(1)+"%" : "—"}</span></div>
+     <div class="cyber-item"><span class="cyber-key">Total Updates</span><span class="cyber-val">${ol.n_updates ?? 0}</span></div>`;
+  document.getElementById("onlinePanel").innerHTML = html;
+}
+
+// ── Raw features ──────────────────────────────────────────────────────────────
+function renderRawFeatures(feats) {
+  if (!feats) return;
+  document.getElementById("rawFeatures").innerHTML = Object.entries(feats).map(([k, v]) => `
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); margin-bottom:4px;">${k}</div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600; color:var(--accent2);">${v}</div>
+    </div>`).join("");
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const res = await fetch("/history");
+    const data = await res.json();
+    const tbody = document.getElementById("historyBody");
+    if (!data.predictions?.length) {
+      tbody.innerHTML = `<tr><td colspan="3" style="color:var(--muted); text-align:center;">No scans yet</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = data.predictions.map(p => {
+      const c = p.prediction === "phishing" ? "var(--danger2)" : "var(--safe2)";
+      return `<tr>
+        <td class="url-cell" title="${p.url}">${p.url}</td>
+        <td style="color:${c};">${p.prediction}</td>
+        <td style="color:${c};">${p.phishing_probability}%</td>
+      </tr>`;
+    }).join("");
+  } catch(e) {}
+}
+
+// ── Feedback / Online Retrain ─────────────────────────────────────────────────
+async function submitFeedback(label) {
+  if (!currentUrl) return alert("Scan a URL first.");
+  try {
+    const res = await fetch("/retrain", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: currentUrl, label })
+    });
+    const data = await res.json();
+    document.getElementById("onlinePanel").innerHTML =
+      `<div style="color:var(--safe2); font-size:13px;">✓ ${data.message}<br>Total updates: ${data.total_updates}</div>`;
+  } catch(e) {
+    alert("Error: " + e.message);
+  }
+}
+</script>
+</body>
+</html>
